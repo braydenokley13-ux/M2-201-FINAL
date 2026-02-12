@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Front Office City: NFL Capital Run</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.161.0/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Front Office City: NFL Capital Run</h1>
+        <p class="subtitle">Agent -> League Office -> Owner | 2025 Snapshot</p>
+      </div>
+      <div class="chip-list">
+        <span class="chip" id="lockDateChip">Data Lock: --</span>
+        <span class="chip">Mode: NFL-only</span>
+      </div>
+    </header>
+
+    <main class="app-grid">
+      <section class="world-column">
+        <div class="canvas-wrap">
+          <canvas id="worldCanvas" aria-label="3D NFL Business District"></canvas>
+          <div id="hudRoot" class="hud"></div>
+          <div id="toaster" class="toaster" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <aside class="side-column">
+        <section class="panel" id="setupPanel">
+          <h2>Setup</h2>
+          <p class="help-text">Pick your team and difficulty before starting.</p>
+          <label for="teamSelect">Learner Team</label>
+          <select id="teamSelect">
+            <option value="">Choose a team</option>
+          </select>
+
+          <label for="difficultySelect">Difficulty</label>
+          <select id="difficultySelect">
+            <option value="">Choose difficulty</option>
+            <option value="ROOKIE">Rookie</option>
+            <option value="PRO">Pro</option>
+            <option value="LEGEND">Legend</option>
+          </select>
+
+          <label for="seedInput">Seed (optional, for replay)</label>
+          <input
+            id="seedInput"
+            type="number"
+            inputmode="numeric"
+            placeholder="Example: 201"
+          />
+
+          <button id="startRunButton" disabled>Start Run</button>
+        </section>
+
+        <section class="panel hidden" id="missionPanel">
+          <h2>Current Mission</h2>
+          <div id="missionMeta"></div>
+          <button id="openMissionButton">Open Mission Card</button>
+          <button id="newRunButton" class="secondary">Start New Attempt</button>
+        </section>
+
+        <section class="panel hidden" id="resultsPanel">
+          <h2>Run Results</h2>
+          <div id="resultsBody"></div>
+          <div class="row-actions">
+            <button id="downloadCsvButton" class="secondary">Download CSV</button>
+          </div>
+        </section>
+
+        <section class="panel" id="sourcesPanel">
+          <h2>Data Sources (2025 Snapshot)</h2>
+          <div id="sourceList"></div>
+        </section>
+      </aside>
+    </main>
+
+    <div id="modalRoot" class="modal-root" aria-live="polite"></div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
