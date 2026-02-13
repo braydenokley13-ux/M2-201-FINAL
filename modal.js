@@ -71,6 +71,26 @@ function metricValueText(metrics) {
   return pairs.map(([key, label]) => `${label}: ${metrics[key]}`).join(" | ");
 }
 
+function deltaClass(value) {
+  if (value > 0) {
+    return "good";
+  }
+  if (value < 0) {
+    return "bad";
+  }
+  return "flat";
+}
+
+function optionTagMarkup(option) {
+  const tags = option.tuningTags ?? [];
+  if (tags.length === 0) {
+    return "";
+  }
+  return `<div class="option-tags">${tags
+    .map((tag) => `<span class="option-tag">${escapeHtml(tag)}</span>`)
+    .join("")}</div>`;
+}
+
 function removeCurrentModal() {
   const root = document.getElementById("modalRoot");
   if (!root) {
@@ -108,12 +128,19 @@ export function openDecisionModal(mission, options = {}) {
     .map((option) => {
       const optionCitations = getCitationsByIds(option.citationIds ?? []);
       return `
-        <button class="option-btn" data-option-id="${escapeHtml(option.id)}">
-          <div class="option-title">${escapeHtml(option.id)}. ${escapeHtml(option.label)}</div>
+        <button class="option-btn mission-option" data-option-id="${escapeHtml(option.id)}">
+          <div class="option-head">
+            <div class="option-title">${escapeHtml(option.id)}. ${escapeHtml(option.label)}</div>
+            <div class="option-pills">
+              <span class="delta-pill ${deltaClass(option.capDeltaM)}">Cap ${option.capDeltaM >= 0 ? "+" : ""}${option.capDeltaM.toFixed(1)}M</span>
+              <span class="delta-pill ${deltaClass(-option.deadCapDeltaM)}">Dead ${option.deadCapDeltaM >= 0 ? "+" : ""}${option.deadCapDeltaM.toFixed(1)}M</span>
+            </div>
+          </div>
+          ${optionTagMarkup(option)}
           <div class="option-line"><strong>Kid-simple:</strong> ${escapeHtml(option.summaryKid)}</div>
           <div class="option-line"><strong>Front-office:</strong> ${escapeHtml(option.summaryFrontOffice)}</div>
-          <div class="option-line"><strong>Cap:</strong> ${option.capDeltaM >= 0 ? "+" : ""}${option.capDeltaM.toFixed(1)}M | <strong>Dead Cap:</strong> ${option.deadCapDeltaM >= 0 ? "+" : ""}${option.deadCapDeltaM.toFixed(1)}M ${citationMarkup(optionCitations)}</div>
           <div class="option-line small">${escapeHtml(metricDeltaText(option.metricDeltas))} ${citationMarkup(roleCitations)}</div>
+          <div class="option-line small">Sources: ${citationMarkup(optionCitations)}</div>
         </button>
       `;
     })
@@ -121,15 +148,22 @@ export function openDecisionModal(mission, options = {}) {
 
   root.innerHTML = `
     <div class="modal-backdrop" data-close="1">
-      <section class="modal-card" role="dialog" aria-modal="true" aria-label="Mission Decision">
-        <div class="meta-chip">Role: ${escapeHtml(mission.role)}</div>
-        <div class="meta-chip">Zone: ${escapeHtml(mission.zone)}</div>
-        <div class="meta-chip">Urgency: ${escapeHtml(mission.urgency)}</div>
+      <section class="modal-card mission-modal" role="dialog" aria-modal="true" aria-label="Mission Decision">
+        <div class="modal-topline">
+          <div class="modal-badges">
+            <span class="meta-chip">Role: ${escapeHtml(mission.role)}</span>
+            <span class="meta-chip">Zone: ${escapeHtml(mission.zone)}</span>
+            <span class="meta-chip">Urgency: ${escapeHtml(mission.urgency)}</span>
+          </div>
+          <button class="modal-close-btn" id="closeMissionModal" aria-label="Close mission card">Close</button>
+        </div>
         <h2>${escapeHtml(mission.title)}</h2>
-        <p>${escapeHtml(mission.description)} ${citationMarkup(missionCitations)}</p>
-        <div class="formula-line"><strong>Hint trigger:</strong> ${escapeHtml(hint.trigger)}</div>
-        <div class="formula-line"><strong>Kid-simple hint:</strong> ${escapeHtml(hint.kid)}</div>
-        <div class="formula-line"><strong>Front-office hint:</strong> ${escapeHtml(hint.frontOffice)}</div>
+        <p class="mission-line">${escapeHtml(mission.description)} ${citationMarkup(missionCitations)}</p>
+        <div class="hint-grid">
+          <div class="formula-line"><strong>Hint trigger:</strong> ${escapeHtml(hint.trigger)}</div>
+          <div class="formula-line"><strong>Kid-simple hint:</strong> ${escapeHtml(hint.kid)}</div>
+          <div class="formula-line"><strong>Front-office hint:</strong> ${escapeHtml(hint.frontOffice)}</div>
+        </div>
         <div class="option-grid">${optionMarkup}</div>
       </section>
     </div>
@@ -138,6 +172,7 @@ export function openDecisionModal(mission, options = {}) {
   return new Promise((resolve) => {
     const backdrop = root.querySelector(".modal-backdrop");
     const optionButtons = root.querySelectorAll(".option-btn");
+    const closeButton = root.querySelector("#closeMissionModal");
 
     function closeWith(value) {
       removeCurrentModal();
@@ -148,6 +183,10 @@ export function openDecisionModal(mission, options = {}) {
       if (event.target instanceof Element && event.target.matches("[data-close='1']")) {
         closeWith(null);
       }
+    });
+
+    closeButton?.addEventListener("click", () => {
+      closeWith(null);
     });
 
     optionButtons.forEach((button) => {
@@ -182,8 +221,11 @@ export function openFormulaBreakdownModal(payload) {
 
   root.innerHTML = `
     <div class="modal-backdrop" data-close="1">
-      <section class="modal-card" role="dialog" aria-modal="true" aria-label="Decision Outcome">
-        <h2>Decision Result</h2>
+      <section class="modal-card result-modal" role="dialog" aria-modal="true" aria-label="Decision Outcome">
+        <div class="modal-topline">
+          <h2>Decision Result</h2>
+          <button class="modal-close-btn" id="closeOutcomeButton" aria-label="Continue">Continue</button>
+        </div>
         <p class="mission-line"><strong>Kid-simple:</strong> You picked <em>${escapeHtml(payload.option.label)}</em>. The game updated your team scores and cap totals right away.</p>
         <p class="mission-line"><strong>Front-office:</strong> ${escapeHtml(payload.option.summaryFrontOffice)}</p>
         <div class="formula-line ${legalClass}"><strong>${legalText}</strong> ${escapeHtml(reasonText)} ${citationMarkup(capCitations)}</div>
@@ -191,9 +233,6 @@ export function openFormulaBreakdownModal(payload) {
         <div class="formula-line"><strong>AI Composite:</strong> ${payload.aiComposite} | <strong>Current Margin:</strong> ${payload.margin} (need ${payload.marginRequired}) ${citationMarkup(formulaCitations)}</div>
         <div class="formula-line"><strong>Updated Metrics:</strong> ${escapeHtml(metricValueText(payload.afterMetrics))} ${citationMarkup(formulaCitations)}</div>
         ${eventLine}
-        <div class="row-actions" style="margin-top:10px">
-          <button id="closeOutcomeButton">Continue</button>
-        </div>
       </section>
     </div>
   `;

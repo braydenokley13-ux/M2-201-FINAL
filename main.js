@@ -37,11 +37,13 @@ const dom = {
 
 const teams = listTeams();
 const audio = createAudioController();
-const world = initWorld3D(dom.worldCanvas, {});
+const world = initWorld3D(dom.worldCanvas, { onMissionEntry: handleWorldMissionEntry });
 
 let state = null;
 let toastTimeout = null;
 let lastDecision = null;
+let pendingEntryMissionId = null;
+let missionDecisionBusy = false;
 
 function showToast(message) {
   if (!dom.toaster) {
@@ -73,6 +75,14 @@ function citationMarkup(citations) {
     .map((citation) => {
       return `<a class=\"citation-pill\" href=\"${escapeHtml(citation.url)}\" target=\"_blank\" rel=\"noreferrer noopener\" title=\"${escapeHtml(citation.label)}\">src</a>`;
     })
+    .join(" ");
+}
+
+function prettyZone(zoneId) {
+  return String(zoneId || "")
+    .toLowerCase()
+    .split("_")
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : ""))
     .join(" ");
 }
 
@@ -112,6 +122,7 @@ function refreshStartButton() {
 function renderMissionMeta() {
   if (!state) {
     dom.missionMeta.innerHTML = "";
+    dom.openMissionButton.disabled = true;
     return;
   }
 
@@ -121,7 +132,15 @@ function renderMissionMeta() {
       <div class="mission-line"><strong>Mission block complete.</strong> Open the results panel to review your run.</div>
     `;
     world.setMission(null);
+    dom.openMissionButton.disabled = true;
+    dom.openMissionButton.textContent = "Mission Block Complete";
+    pendingEntryMissionId = null;
     return;
+  }
+
+  if (pendingEntryMissionId !== mission.id) {
+    pendingEntryMissionId = mission.id;
+    state.pendingMissionEntry = true;
   }
 
   const inFinalThird = state.currentMissionIndex >= Math.ceil((state.missionPlan.length * 2) / 3);
@@ -129,16 +148,38 @@ function renderMissionMeta() {
     ? `Final-third pressure ON (x${state.difficultyConfig.deadlinePressureMultiplier})`
     : "Normal pressure";
   const missionCitations = citationMarkup(getTeamFieldCitations(state.learner.teamId, "transactionRules"));
+  const accessState = state.pendingMissionEntry ? "travel" : "ready";
+  const accessLabel = state.pendingMissionEntry
+    ? `Walk your character to the glowing doorway at ${prettyZone(mission.zone)} to load this mission.`
+    : "Inside target building: mission card unlocked.";
+  const statusTitle = state.pendingMissionEntry ? "Travel To Building" : "Mission Ready";
 
   dom.missionMeta.innerHTML = `
-    <div class="meta-chip">Mission ID: ${mission.id}</div>
-    <div class="meta-chip">Role: ${mission.role}</div>
-    <div class="meta-chip">Zone: ${mission.zone}</div>
-    <div class="meta-chip">Urgency: ${mission.urgency}</div>
-    <div class="mission-line"><strong>${escapeHtml(mission.title)}</strong> ${missionCitations}</div>
-    <div class="small">${escapeHtml(mission.description)}</div>
-    <div class="mission-line small">${deadlineText}</div>
+    <article class="mission-card-shell" data-state="${accessState}">
+      <div class="mission-head">
+        <div class="mission-kicker-row">
+          <div class="mission-kicker">${statusTitle}</div>
+          <div class="mission-role-pill">${mission.role.replaceAll("_", " ")}</div>
+        </div>
+        <h3>${escapeHtml(mission.title)}</h3>
+        <p class="mission-desc">${escapeHtml(mission.description)} ${missionCitations}</p>
+      </div>
+      <div class="mission-meta-grid">
+        <div class="meta-chip">Mission ID: ${mission.id}</div>
+        <div class="meta-chip">Zone: ${prettyZone(mission.zone)}</div>
+        <div class="meta-chip">Urgency: ${mission.urgency}</div>
+      </div>
+      <div class="mission-guidance">
+        <div class="mission-gate-line ${accessState}">${escapeHtml(accessLabel)}</div>
+        <div class="mission-deadline ${inFinalThird ? "urgent" : ""}">${deadlineText}</div>
+      </div>
+    </article>
   `;
+
+  dom.openMissionButton.disabled = state.pendingMissionEntry;
+  dom.openMissionButton.textContent = state.pendingMissionEntry
+    ? "Walk Into Building To Start Mission"
+    : "Open Mission Card";
 
   world.setMission(mission);
 }
@@ -232,6 +273,9 @@ function startRun() {
     seed: Number.isFinite(parsedSeed) ? parsedSeed : Date.now(),
   });
   lastDecision = null;
+  pendingEntryMissionId = null;
+  missionDecisionBusy = false;
+  state.pendingMissionEntry = true;
 
   world.setTeam(state.learner.teamId);
   renderMissionMeta();
@@ -239,13 +283,17 @@ function startRun() {
 
   dom.missionPanel.classList.remove("hidden");
   dom.resultsPanel.classList.add("hidden");
-  dom.openMissionButton.disabled = false;
+  dom.openMissionButton.disabled = true;
+  dom.openMissionButton.textContent = "Walk Into Building To Start Mission";
 
-  showToast(`Run started: ${state.runId}`);
+  showToast(`Run started: ${state.runId}. Click in the city to walk to the mission doorway.`);
 }
 
-async function handleMissionDecision() {
+async function handleMissionDecision(trigger = "manual") {
   if (!state || state.finished) {
+    return;
+  }
+  if (missionDecisionBusy) {
     return;
   }
 
@@ -254,7 +302,15 @@ async function handleMissionDecision() {
     finalizeRun();
     return;
   }
+  if (state.pendingMissionEntry) {
+    if (trigger === "manual") {
+      showToast(`Walk into ${prettyZone(mission.zone)} first.`);
+    }
+    dom.openMissionButton.disabled = true;
+    return;
+  }
 
+  missionDecisionBusy = true;
   dom.openMissionButton.disabled = true;
 
   try {
@@ -317,12 +373,35 @@ async function handleMissionDecision() {
     }
 
     renderMissionMeta();
-    dom.openMissionButton.disabled = false;
   } catch (error) {
     console.error(error);
     showToast(`Decision failed: ${error.message}`);
     dom.openMissionButton.disabled = false;
+  } finally {
+    missionDecisionBusy = false;
   }
+}
+
+function handleWorldMissionEntry(entry) {
+  if (!state || state.finished) {
+    return;
+  }
+  const mission = getCurrentNFLMission(state);
+  if (!mission) {
+    return;
+  }
+  if (entry?.missionId && entry.missionId !== mission.id) {
+    return;
+  }
+  if (!state.pendingMissionEntry) {
+    return;
+  }
+
+  state.pendingMissionEntry = false;
+  renderMissionMeta();
+  audio.play("select");
+  showToast(`Entered ${prettyZone(mission.zone)}. Mission loading...`);
+  void handleMissionDecision("entry");
 }
 
 function finalizeRun() {
@@ -331,6 +410,8 @@ function finalizeRun() {
   }
 
   const result = finishNFLRun(state);
+  state.pendingMissionEntry = false;
+  pendingEntryMissionId = null;
   renderHUD(state);
   renderMissionMeta();
   renderResults(result);
@@ -349,9 +430,12 @@ function finalizeRun() {
 function resetAttempt() {
   state = null;
   lastDecision = null;
+  pendingEntryMissionId = null;
+  missionDecisionBusy = false;
   dom.resultsPanel.classList.add("hidden");
   dom.missionPanel.classList.add("hidden");
   dom.openMissionButton.disabled = false;
+  dom.openMissionButton.textContent = "Open Mission Card";
   world.setMission(null);
   renderHUD(null);
   showToast("Ready for a new attempt.");
