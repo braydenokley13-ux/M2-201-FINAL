@@ -70,6 +70,62 @@ function buildEffectiveMission(mission, multiplier, shouldApplyPressure) {
   };
 }
 
+function balanceLearnerDecision(option, difficulty) {
+  const tuning = {
+    ROOKIE: {
+      positiveMetric: 1.22,
+      negativeMetric: 0.78,
+      capGain: 1.15,
+      capCost: 0.82,
+      deadCapIncrease: 0.8,
+    },
+    PRO: {
+      positiveMetric: 1.1,
+      negativeMetric: 0.88,
+      capGain: 1.08,
+      capCost: 0.9,
+      deadCapIncrease: 0.88,
+    },
+    LEGEND: {
+      positiveMetric: 1.2,
+      negativeMetric: 0.86,
+      capGain: 1.08,
+      capCost: 0.9,
+      deadCapIncrease: 0.86,
+    },
+  }[difficulty];
+
+  if (!tuning) {
+    return option;
+  }
+
+  const metricDeltas = {};
+  for (const [metric, rawValue] of Object.entries(option.metricDeltas)) {
+    if (rawValue >= 0) {
+      metricDeltas[metric] = Math.round(rawValue * tuning.positiveMetric);
+    } else {
+      metricDeltas[metric] = Math.round(rawValue * tuning.negativeMetric);
+    }
+  }
+
+  const capDeltaM =
+    option.capDeltaM >= 0
+      ? Math.round(option.capDeltaM * tuning.capGain * 10) / 10
+      : Math.round(option.capDeltaM * tuning.capCost * 10) / 10;
+
+  const deadCapDeltaM =
+    option.deadCapDeltaM > 0
+      ? Math.round(option.deadCapDeltaM * tuning.deadCapIncrease * 10) / 10
+      : option.deadCapDeltaM;
+
+  return {
+    ...option,
+    capDeltaM,
+    deadCapDeltaM,
+    metricDeltas,
+  };
+}
+
 function inFinalThird(indexZeroBased, totalMissions) {
   const firstIndex = Math.ceil((totalMissions * 2) / 3);
   return indexZeroBased >= firstIndex;
@@ -114,8 +170,27 @@ function appendDecisionRow(state, row) {
     gate_flags: row.gate_flags,
     cleared: row.cleared,
     claim_code: row.claim_code,
+    review_checksum: row.review_checksum ?? "",
     ...flattenDeltas(row.metric_deltas),
   });
+}
+
+function computeReviewChecksum(state, gateResult) {
+  const base = [
+    state.runId,
+    state.difficulty,
+    state.learner.teamId,
+    gateResult.learnerComposite,
+    gateResult.aiComposite,
+    gateResult.margin,
+    state.eventsTriggered,
+    state.legalPass ? "1" : "0",
+  ].join("|");
+  let hash = 0;
+  for (let i = 0; i < base.length; i += 1) {
+    hash = (hash * 31 + base.charCodeAt(i)) >>> 0;
+  }
+  return `CHK-${hash.toString(36).toUpperCase().padStart(6, "0")}`;
 }
 
 function createClaimCode(state, result) {
@@ -274,9 +349,11 @@ export function applyNFLMissionOption(state, missionId, optionId) {
     throw new Error(`Unknown option ${optionId} for mission ${missionId}`);
   }
 
-  const legality = checkNFLMoveLegality(state.learner.finances, chosenOption);
+  const tunedLearnerOption = balanceLearnerDecision(chosenOption, state.difficulty);
+
+  const legality = checkNFLMoveLegality(state.learner.finances, tunedLearnerOption);
   state.learner.finances = legality.projected;
-  state.learner.metrics = applyMetricDeltas(state.learner.metrics, chosenOption.metricDeltas);
+  state.learner.metrics = applyMetricDeltas(state.learner.metrics, tunedLearnerOption.metricDeltas);
   state.learner.composite = calculateComposite(state.learner.metrics);
   state.learnerComposite = state.learner.composite;
   state.learner.lastChoice = {
@@ -297,16 +374,16 @@ export function applyNFLMissionOption(state, missionId, optionId) {
       role: mission.role,
       option_id: optionId,
       legal: legality.legal,
-      cap_delta_m: chosenOption.capDeltaM,
-      dead_cap_delta_m: chosenOption.deadCapDeltaM,
-      metric_deltas: chosenOption.metricDeltas,
+      cap_delta_m: tunedLearnerOption.capDeltaM,
+      dead_cap_delta_m: tunedLearnerOption.deadCapDeltaM,
+      metric_deltas: tunedLearnerOption.metricDeltas,
       composite_after: state.learner.composite,
     },
   };
 
   return {
     mission,
-    option: chosenOption,
+    option: tunedLearnerOption,
     legality,
     runFinishedByProgress: state.currentMissionIndex + 1 >= state.missionPlan.length,
   };
@@ -411,6 +488,7 @@ export function finishNFLRun(state) {
 
   const gateResult = evaluateRunGates(state);
   const claimCode = createClaimCode(state, gateResult);
+  const reviewChecksum = computeReviewChecksum(state, gateResult);
   const xpAwarded = gateResult.cleared ? state.difficultyConfig.xpBase : 0;
 
   const result = {
@@ -423,6 +501,7 @@ export function finishNFLRun(state) {
     eventsTriggered: state.eventsTriggered,
     learnerMetrics: { ...state.learner.metrics },
     aiMetrics: { ...state.ai.metrics },
+    reviewChecksum,
   };
 
   appendDecisionRow(state, {
@@ -443,6 +522,7 @@ export function finishNFLRun(state) {
     gate_flags: gateFlagsToText(gateResult),
     cleared: gateResult.cleared,
     claim_code: claimCode ?? "",
+    review_checksum: reviewChecksum,
   });
 
   state.finished = true;

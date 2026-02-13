@@ -1,4 +1,4 @@
-import { getCitationById } from "./nfl_sources.js";
+import { getCitationById, getCitationsByIds } from "./nfl_sources.js";
 
 /**
  * @typedef {Object} NFLContractDriver
@@ -27,26 +27,26 @@ export const TEAM_SNAPSHOTS = [
     id: "KC",
     displayName: "Kansas City Chiefs",
     season: 2025,
-    capSpaceM: 12.1,
-    deadCapM: 18.4,
+    capSpaceM: 1.3,
+    deadCapM: 22.7,
     coreContracts: [
       {
         player: "Patrick Mahomes",
-        capHitM: 66.3,
+        capHitM: 28.1,
         deadCapM: 99.8,
-        citationId: "spotrac_kc_contracts",
-      },
-      {
-        player: "Chris Jones",
-        capHitM: 34.7,
-        deadCapM: 54.4,
-        citationId: "spotrac_kc_contracts",
+        citationId: "otc_texture_2025_kc",
       },
       {
         player: "Jawaan Taylor",
         capHitM: 27.4,
         deadCapM: 34.0,
-        citationId: "spotrac_kc_contracts",
+        citationId: "otc_texture_2025_kc",
+      },
+      {
+        player: "Chris Jones",
+        capHitM: 23.6,
+        deadCapM: 54.4,
+        citationId: "otc_texture_2025_kc",
       },
     ],
     deadCapDrivers: [
@@ -54,16 +54,17 @@ export const TEAM_SNAPSHOTS = [
       "Void-year accelerations on select contracts",
     ],
     initialMetrics: {
-      cap_health: 64,
-      roster_strength: 83,
-      flexibility: 60,
+      cap_health: 60,
+      roster_strength: 82,
+      flexibility: 56,
       player_relations: 72,
       franchise_value_growth: 86,
     },
     fieldCitations: {
-      capSpaceM: ["otc_kc_2025"],
-      deadCapM: ["otc_kc_2025"],
-      coreContracts: ["spotrac_kc_contracts"],
+      capSpaceM: ["otc_texture_2025_kc"],
+      deadCapM: ["otc_texture_2025_kc"],
+      coreContracts: ["otc_texture_2025_kc"],
+      compositeModel: ["nfl_cap_model_guide"],
       transactionRules: ["nfl_ops_rules", "nfl_cba_index"],
     },
   },
@@ -71,26 +72,26 @@ export const TEAM_SNAPSHOTS = [
     id: "SF",
     displayName: "San Francisco 49ers",
     season: 2025,
-    capSpaceM: 9.4,
-    deadCapM: 21.2,
+    capSpaceM: 20.0,
+    deadCapM: 103.8,
     coreContracts: [
       {
         player: "Trent Williams",
-        capHitM: 31.8,
+        capHitM: 21.1,
         deadCapM: 43.7,
-        citationId: "spotrac_sf_contracts",
-      },
-      {
-        player: "Fred Warner",
-        capHitM: 27.1,
-        deadCapM: 33.1,
-        citationId: "spotrac_sf_contracts",
+        citationId: "otc_texture_2025_sf",
       },
       {
         player: "Nick Bosa",
-        capHitM: 25.2,
+        capHitM: 20.4,
         deadCapM: 67.8,
-        citationId: "spotrac_sf_contracts",
+        citationId: "otc_texture_2025_sf",
+      },
+      {
+        player: "Fred Warner",
+        capHitM: 16.1,
+        deadCapM: 33.1,
+        citationId: "otc_texture_2025_sf",
       },
     ],
     deadCapDrivers: [
@@ -98,16 +99,17 @@ export const TEAM_SNAPSHOTS = [
       "Bonus acceleration risk on early exits",
     ],
     initialMetrics: {
-      cap_health: 58,
+      cap_health: 56,
       roster_strength: 85,
-      flexibility: 57,
+      flexibility: 54,
       player_relations: 75,
       franchise_value_growth: 84,
     },
     fieldCitations: {
-      capSpaceM: ["otc_sf_2025"],
-      deadCapM: ["otc_sf_2025"],
-      coreContracts: ["spotrac_sf_contracts"],
+      capSpaceM: ["otc_texture_2025_sf"],
+      deadCapM: ["otc_texture_2025_sf"],
+      coreContracts: ["otc_texture_2025_sf"],
+      compositeModel: ["nfl_cap_model_guide"],
       transactionRules: ["nfl_ops_rules", "nfl_cba_index"],
     },
   },
@@ -134,4 +136,17 @@ export function getTeamCitations(teamId) {
     .flat()
     .map((citationId) => getCitationById(citationId))
     .filter(Boolean);
+}
+
+export function getTeamFieldCitations(teamId, fieldKey) {
+  const team = TEAM_SNAPSHOTS.find((entry) => entry.id === teamId);
+  if (!team) {
+    return [];
+  }
+  const ids = team.fieldCitations[fieldKey] ?? [];
+  return getCitationsByIds(ids);
+}
+
+export function getContractDriverCitation(contract) {
+  return getCitationById(contract.citationId);
 }

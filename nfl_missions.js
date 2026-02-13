@@ -12,6 +12,7 @@
  * @property {number} deadCapDeltaM
  * @property {{cap_health:number,roster_strength:number,flexibility:number,player_relations:number,franchise_value_growth:number}} metricDeltas
  * @property {string[]} citationIds
+ * @property {string[]} [tuningTags]
  */
 
 /**
@@ -863,9 +864,67 @@ function validateDifficulty(difficulty) {
   }
 }
 
-function cloneMission(mission) {
-  return JSON.parse(JSON.stringify(mission));
+function deriveOptionTuningTags(option) {
+  const tags = [];
+  if (option.capDeltaM <= -4 || option.deadCapDeltaM >= 4) {
+    tags.push("cap-risk");
+  }
+  if ((option.metricDeltas.player_relations ?? 0) <= -2) {
+    tags.push("trust-risk");
+  }
+  if ((option.metricDeltas.flexibility ?? 0) <= -2) {
+    tags.push("flexibility-risk");
+  }
+  if (tags.length === 0) {
+    tags.push("stable-profile");
+  }
+  return tags;
 }
+
+function cloneMission(mission) {
+  const cloned = JSON.parse(JSON.stringify(mission));
+  cloned.options = cloned.options.map((option) => ({
+    ...option,
+    tuningTags: option.tuningTags ?? deriveOptionTuningTags(option),
+  }));
+  return cloned;
+}
+
+const FUTURE_PACK_MISSIONS = [
+  {
+    id: "AGENT-005",
+    role: "AGENT",
+    zone: "CONTRACT_ROW",
+    urgency: "normal",
+    title: "Backlog: Complex Incentive Ladder",
+    description: "Future pack placeholder mission for advanced incentive structures.",
+    learningObjective:
+      "Model incentive ladders and upside/downside cap scenarios before final guarantees.",
+    status: "BACKLOG_ONLY",
+  },
+  {
+    id: "LEAGUE-005",
+    role: "LEAGUE_OFFICE",
+    zone: "LEAGUE_OFFICE_FLOOR",
+    urgency: "normal",
+    title: "Backlog: Compliance Appeal Window",
+    description: "Future pack placeholder mission for compliance response strategy.",
+    learningObjective:
+      "Practice evidence-based league communication and risk-managed response timing.",
+    status: "BACKLOG_ONLY",
+  },
+  {
+    id: "OWNER-005",
+    role: "OWNER",
+    zone: "BOARDROOM_FLOOR",
+    urgency: "deadline",
+    title: "Backlog: Franchise Debt Structure Decision",
+    description: "Future pack placeholder mission for ownership-level capital strategy.",
+    learningObjective:
+      "Compare growth financing options while protecting cap stability and team trust.",
+    status: "BACKLOG_ONLY",
+  },
+];
 
 export function getAllMissions() {
   return [...AGENT_MISSIONS, ...LEAGUE_OFFICE_MISSIONS, ...OWNER_MISSIONS].map(
@@ -891,4 +950,8 @@ export function getRoleMissionCounts(difficulty) {
     LEAGUE_OFFICE: DIFFICULTY_ROLE_COUNT[difficulty],
     OWNER: DIFFICULTY_ROLE_COUNT[difficulty],
   };
+}
+
+export function getFuturePackMissions() {
+  return FUTURE_PACK_MISSIONS.map((mission) => ({ ...mission }));
 }

@@ -226,6 +226,29 @@ h2 {
   color: var(--muted);
 }
 
+.citation-stack {
+  display: inline-flex;
+  gap: 4px;
+  vertical-align: middle;
+}
+
+.citation-pill {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 999px;
+  border: 1px solid #97adc0;
+  background: #edf4fa;
+  color: #1a4f7a;
+  text-decoration: none;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.citation-pill:hover {
+  background: #dceaf7;
+}
+
 .hud-value.ok {
   color: var(--ok);
 }
@@ -279,6 +302,15 @@ h2 {
 .row-actions {
   display: flex;
   gap: 8px;
+}
+
+#resultsBody h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.print-section {
+  margin-bottom: 10px;
 }
 
 .meta-chip {
@@ -391,5 +423,39 @@ h2 {
 
   .hud-card {
     max-width: 100%;
+  }
+
+  .citation-pill {
+    font-size: 0.64rem;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+    padding: 0;
+  }
+
+  .topbar,
+  #setupPanel,
+  #missionPanel,
+  #sourcesPanel,
+  .canvas-wrap,
+  .row-actions {
+    display: none !important;
+  }
+
+  .app-grid {
+    display: block;
+  }
+
+  .side-column {
+    width: 100%;
+  }
+
+  #resultsPanel {
+    display: block !important;
+    border: none;
+    box-shadow: none;
   }
 }

@@ -46,7 +46,7 @@ export const DIFFICULTY_CONFIG = {
 };
 
 export const CAP_MIN_LIMIT_M = 0;
-export const DEAD_CAP_SOFT_LIMIT_M = 85;
+export const DEAD_CAP_SOFT_LIMIT_M = 130;
 
 export function getDifficultyConfig(difficulty) {
   const config = DIFFICULTY_CONFIG[difficulty];
@@ -177,16 +177,17 @@ export function applyDeadlinePressure(option, multiplier) {
       metricDeltas: { ...option.metricDeltas },
     };
   }
+  const softened = 1 + (multiplier - 1) * 0.55;
   const adjustedMetrics = {};
   for (const metric of METRIC_KEYS) {
     const value = option.metricDeltas[metric] ?? 0;
-    adjustedMetrics[metric] = value < 0 ? Math.round(value * multiplier) : value;
+    adjustedMetrics[metric] = value < 0 ? Math.round(value * softened) : value;
   }
   return {
-    capDeltaM: option.capDeltaM < 0 ? roundTenth(option.capDeltaM * multiplier) : option.capDeltaM,
+    capDeltaM: option.capDeltaM < 0 ? roundTenth(option.capDeltaM * softened) : option.capDeltaM,
     deadCapDeltaM:
       option.deadCapDeltaM > 0
-        ? roundTenth(option.deadCapDeltaM * multiplier)
+        ? roundTenth(option.deadCapDeltaM * softened)
         : option.deadCapDeltaM,
     metricDeltas: adjustedMetrics,
   };

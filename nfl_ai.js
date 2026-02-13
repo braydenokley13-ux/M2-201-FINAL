@@ -8,31 +8,31 @@ import {
 
 const AI_PROFILES = {
   conservative: {
-    legalPenalty: -1000,
-    capWeight: 0.35,
-    rosterWeight: 0.2,
-    flexWeight: 0.25,
+    legalPenalty: -1300,
+    capWeight: 0.38,
+    rosterWeight: 0.18,
+    flexWeight: 0.24,
     relationsWeight: 0.1,
     valueWeight: 0.1,
-    noise: 1.5,
+    noise: 1.8,
   },
   balanced: {
-    legalPenalty: -700,
-    capWeight: 0.24,
-    rosterWeight: 0.23,
-    flexWeight: 0.2,
-    relationsWeight: 0.14,
-    valueWeight: 0.19,
-    noise: 2.4,
+    legalPenalty: -1200,
+    capWeight: 0.28,
+    rosterWeight: 0.2,
+    flexWeight: 0.24,
+    relationsWeight: 0.13,
+    valueWeight: 0.15,
+    noise: 3.4,
   },
   aggressive: {
-    legalPenalty: -500,
-    capWeight: 0.14,
-    rosterWeight: 0.32,
-    flexWeight: 0.16,
-    relationsWeight: 0.12,
-    valueWeight: 0.26,
-    noise: 3.2,
+    legalPenalty: -950,
+    capWeight: 0.2,
+    rosterWeight: 0.27,
+    flexWeight: 0.18,
+    relationsWeight: 0.13,
+    valueWeight: 0.22,
+    noise: 4.4,
   },
 };
 
@@ -44,7 +44,7 @@ function optionScore(profile, legality, option, rng) {
     deltas.flexibility * profile.flexWeight +
     deltas.player_relations * profile.relationsWeight +
     deltas.franchise_value_growth * profile.valueWeight;
-  const capBias = option.capDeltaM > 0 ? 0.5 : -0.3;
+  const capBias = option.capDeltaM > 0 ? 0.35 : -0.22;
   const legalityBias = legality.legal ? 0 : profile.legalPenalty;
   const noise = (rng() - 0.5) * profile.noise;
   return weighted + capBias + legalityBias + noise;

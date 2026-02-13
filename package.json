@@ -1,0 +1,11 @@
+{
+  "name": "nfl-capital-run",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "sim:balance": "node scripts/simulate-balance.mjs",
+    "smoke": "node scripts/smoke-run.mjs"
+  }
+}
